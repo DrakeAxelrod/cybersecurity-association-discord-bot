@@ -1,5 +1,6 @@
 import asyncio
 import os
+from discord.embeds import Embed
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands, tasks
@@ -14,6 +15,18 @@ logger.addHandler(handler)
 
 load_dotenv()
 
+n: int = 0 # current challenge
+
+with open("count.txt", "r") as f:
+  n = int(f.read())
+  f.close()
+ 
+def write_count():
+  global n
+  with open("count.txt", "w") as f:
+    f.write(str(n))
+    f.close()
+
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 description = """A discord bot to help manage the cyber-security association Read The Docs."""
@@ -24,8 +37,6 @@ for filename in os.listdir("./cogs"):
   if filename.endswith(".py"):
     bot.load_extension(f"cogs.{filename[:-3]}")
 
-target_channel_id = 915217150493478972/915217150493478975
-
 @bot.event
 async def on_ready():
     await bot.change_presence(status = discord.Status.idle, activity = discord.Game("Hacking governments and what not"))
@@ -34,13 +45,13 @@ async def on_ready():
     print(bot.user.id)
     print('------')
 
-@bot.command()
-async def purge(ctx,where=None,  amount=100):
-  if where:
-    channel = discord.utils.get(bot.get_all_channels(), name=where)
-    await channel.purge(limit=amount)
-  else:
-    await ctx.channel.purge(limit=amount)
+# @bot.command()
+# async def purge(ctx,where=None,  amount=100):
+#   if where:
+#     channel = discord.utils.get(bot.get_all_channels(), name=where)
+#     await channel.purge(limit=amount)
+#   else:
+#     await ctx.channel.purge(limit=amount)
 
 @bot.command()
 async def whoyou(ctx):
@@ -56,30 +67,51 @@ def get_time():
   min = int(datetime.now().time().strftime("%M"))
   return (hour, min)
 
-s = get_time()
-
-print(s[0])
+def capture_the_flag_embed(href: str, date: str) -> Embed:
+  embed=discord.Embed(title="Daily Challenge", description="Here is your daily capture the flag challenge", color=0x52ff74)
+  embed.set_thumbnail(url="https://capturetheflag.withgoogle.com/img/flag_logo.gif")
+  embed.add_field(name="Link", value=href, inline=True)
+  embed.set_footer(text=f"Ahoy - {date}")
+  return embed
 
 async def challenge():
-  when: tuple = (11, 00)
+  global n
+  when: tuple = (11, 0)
   # day = 86400s
-  sleep_length = 10
-  msg = "delayed"
-  channel_to_send_to = "general"
+  sleep_length: int = 86400
+  channel_to_send_to = "challeges"
   await bot.wait_until_ready()
   channel = discord.utils.get(bot.get_all_channels(), name=channel_to_send_to)
   while not bot.is_closed():
     now = get_time()
     if now[0] == when[0] and now[1] <= when[1]:
-        await channel.send(msg)
+        link = f"https://overthewire.org/wargames/bandit/bandit{n}.html"
+        date = datetime.now().date()
+        embed = capture_the_flag_embed(link, date)
+        await channel.send(embed=embed)
+    n+=1
+    write_count()
     await asyncio.sleep(sleep_length)
 
-bot.loop.create_task(challenge())
-
 @bot.command()
-async def get_channel(ctx, where, msg):
+async def send_in(ctx, where, msg):
   channel = discord.utils.get(bot.get_all_channels(), name=where)
   await channel.send(msg)
+
+# @bot.command()
+# async def demo_challenge(ctx, where, msg):
+#   channel = discord.utils.get(bot.get_all_channels(), name=where)
+#   await channel.send(msg)
+  
+# @bot.command()
+# async def test_challenge(ctx):
+#   link = f"https://overthewire.org/wargames/bandit/bandit{n}.html"
+#   date = datetime.now().date()
+#   embed = capture_the_flag_embed(link, date)
+#   await ctx.send(embed=embed)
+  
+
+bot.loop.create_task(challenge())
 # run the bot
 bot.run(TOKEN)
 
